@@ -1,0 +1,64 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Natural unique key ensures we can safely dedupe incoming trades
+// across sources without relying solely on a hash.
+model Trade {
+  id          Int       @id @default(autoincrement())
+  tradeUid    String    @unique // content-based hash to dedupe
+  wallet      String    // proxyWallet
+  marketId    String    // conditionId or eventId
+  marketTitle String?
+  outcome     String?
+  side        TradeSide // BUY | SELL
+  price       Decimal
+  size        Decimal
+  timestamp   DateTime
+  pseudonym   String?
+  txHash      String?
+
+  @@index([wallet])
+  @@index([marketId, timestamp])
+  @@index([timestamp])
+  @@index([txHash])
+  @@index([pseudonym])
+  // Natural key for deduplication (floats avoided via Decimal)
+  @@unique([wallet, marketId, timestamp, side, price, size])
+}
+
+model Cluster {
+  id          Int       @id @default(autoincrement())
+  confidence  Float?    // 0..100
+  patterns    String?   // generated description
+  lastUpdated DateTime  @default(now())
+
+  members     ClusterMember[]
+
+  @@index([lastUpdated])
+  @@index([confidence])
+}
+
+model ClusterMember {
+  id        Int     @id @default(autoincrement())
+  wallet    String
+  clusterId Int
+  cluster   Cluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+
+  @@unique([clusterId, wallet])
+  @@index([wallet])
+  @@index([clusterId])
+}
+
+enum TradeSide {
+  BUY
+  SELL
+}
