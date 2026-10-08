@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# IdPersona
 
-## Getting Started
+An early data-model experiment for grouping trading wallets by their activity. The committed work is a Prisma schema and SQLite migration. The web application is still a starter page.
 
-First, run the development server:
+## The data model
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+[`prisma/schema.prisma`](prisma/schema.prisma) defines three models:
+
+| Model | Purpose |
+| --- | --- |
+| `Trade` | Wallet, market, buy or sell side, price, size, timestamp, and optional transaction metadata |
+| `Cluster` | A group with optional confidence and pattern descriptions |
+| `ClusterMember` | A wallet's membership in a cluster |
+
+Trades have both a unique `tradeUid` and a compound uniqueness constraint on wallet, market, timestamp, side, price, and size. The schema reserves `tradeUid` for a content-based identifier; code to compute it is not included. Indexes cover wallet lookups and market activity over time.
+
+Cluster membership is unique per wallet and cluster, with cascading deletion when a cluster is removed. The schema defines where analysis results would be stored. Trade ingestion, similarity calculations, and clustering have not been implemented.
+
+## Inspect locally
+
+The stack is Next.js 16, React 19, TypeScript, Tailwind CSS 4, Prisma 6, and SQLite.
+
+Install dependencies from the repository root:
+
+```sh
+npm ci
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create a root `.env` file:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```dotenv
+DATABASE_URL="file:./dev.db"
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Then initialize the database and inspect it:
 
-## Learn More
+```sh
+npx prisma generate
+node -e "require('fs').writeFileSync('prisma/dev.db', '', { flag: 'a' })"
+npx prisma migrate deploy
+npx prisma studio
+```
 
-To learn more about Next.js, take a look at the following resources:
+Creating the empty database file avoids a missing-file migration error observed on Windows. The command preserves an existing file.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`npm run dev` opens the web app at `http://localhost:3000`, but there is no analysis UI or API yet. `ml-distance` and Vitest are listed in the package manifest; neither an analysis implementation nor a test suite is present.
